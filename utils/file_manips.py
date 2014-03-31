@@ -41,7 +41,7 @@ def split_ext(filename):
     ext=s[s.find("."):]
     return name, ext
 
-def copy_file(source, destination, version=0, overwrite=False):
+def copy_file(source, destination, passnum=0, version=0, overwrite=False):
     """ A useful function to handle copying files to a different directory
     """
     def get_true_dest_from_message(detail):
@@ -63,8 +63,8 @@ def copy_file(source, destination, version=0, overwrite=False):
         true_dest = get_true_dest_from_message(detail)
         file_name = cut_path(true_dest)
         name, ext = split_ext(file_name)
-        if (name.find("#") == -1):
-            new_source = name + "_#" + str(version) + ext
+        if (name.find("p") == -1) and (passnum != 0):
+            new_source = name + "_p" + str(passnum) + ext
             os.rename(source, new_source)
             source = new_source
             print "file_manips.copy_file: warning, renaming source file to:"
@@ -90,9 +90,10 @@ def copy_file(source, destination, version=0, overwrite=False):
             else:
                 file_name = cut_path(true_dest)
                 name, ext = split_ext(file_name)
-                version += 1
-                new_source = name[:name.find("#")+1] + str(version) + ext
+                new_source = name[:name.find("p" + str(passnum))+2] 
+                new_source += "_q" + str(version) + ext
                 os.rename(source, new_source)
                 source = new_source
                 print "file_manips.copy_file: warning, renaming source file to:"
                 print source
+                version += 1
