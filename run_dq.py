@@ -131,13 +131,13 @@ class RunDQ(object):
                 is_log =  re.search(r"^rat\."+hostname+r"\.[0-9]+\.log$", file)
                 if is_record:
                     file_manips.copy_file(os.path.join(root, file), records_dir,
-                                          self._pass_number, overwrite)
+                                          self._pass_number, 0, overwrite)
                 elif is_plot:
                     file_manips.copy_file(os.path.join(root, file), plots_dir,
-                                          self._pass_number, overwrite)
+                                          self._pass_number, 0, overwrite)
                 elif is_log:
                     file_manips.copy_file(os.path.join(root, file), logs_dir,
-                                          self._pass_number, overwrite)
+                                          self._pass_number, 0, overwrite)
 
 ###############################################################################
 if __name__=="__main__":
