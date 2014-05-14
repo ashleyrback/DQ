@@ -64,6 +64,5 @@ if __name__=="__main__":
             if passed_check:
                 hist_dq_checks.Fill(bit)
 
-
-    hist_dq_checks.Draw()
+    hist_dq_checks.Draw("text")
     raw_input("RET to exit")
