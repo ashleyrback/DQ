@@ -4,7 +4,10 @@
 #
 # Runs DQ processors on raw zdab files in a given directory
 #
-# Author A R Back - 04/03/2014 <ab571@sussex.ac.uk> : First revision
+# Author A R Back
+#
+# 04/03/2014 <ab571@sussex.ac.uk> : First revision
+# 29/05/2014 <ab571@sussex.ac.uk> : Update for RAT-4.6
 #
 ###############################################################################
 import file_manips
@@ -28,8 +31,10 @@ class RunDQ(object):
         self._name, self._ext = file_manips.split_ext(self._filename)
         print self._name
         self._pass_number = pass_number
+        self._zdab_path = None
+        self._root_path = None
         if (self._ext == ".zdab"):
-            self._root_path = None
+            self._zdab_path = self._path
         elif (self._ext == ".root"):
             name_attributes = self._name.split("_")
             pass_index = list_manips.item_containing("p"+str(self._pass_number),
@@ -49,7 +54,8 @@ class RunDQ(object):
             self._root_path = self._path
         self._mac_path = None
     def convert_zdab(self, root_dir=""):
-        """ Uses the zdab2root converter in rat-tools to convert zdab file to 
+        """ DEPRECIATED METHOD - use inzdab in macro
+        Uses the zdab2root converter in rat-tools to convert zdab file to 
         RAT Root file.
         """
         try:
@@ -71,32 +77,46 @@ class RunDQ(object):
         command = "/"+RATZDAB_DIR+"zdab2root "+self._path+" "+self._root_path
         process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
         output = process.communicate()[0]
-    def write_macro(self, mac_dir=""):
+    def write_macro(self, write_macro_dir="default",
+                    read_macro_path="default"):
         """ Writes macro based on standard macro template """
-        if (mac_dir == ""):
-            mac_dir = os.getcwd()
-        self._mac_dir = mac_dir+"/"
-        self._mac_path = self._mac_dir+self._name+".mac"
-        mac_file = open(self._mac_path, "w")
-        mac_file.write("/run/initialize\n")
-        mac_file.write("/rat/proc dqrunproc\n")
-        mac_file.write("/rat/proc dqtimeproc\n")
-        mac_file.write("/rat/proclast outroot\n")
-        if self._pass_number == None:
-            mac_file.write("/rat/procset file \""+self._dir+self._name+"_p1.root\"\n")
-        else:
-            self._pass_number += 1
-            mac_file.write("/rat/procset file \""+self._dir+self._name+"p" \
-                               +str(self._pass_number)+".root\"\n")
-        try:
-            assert (self._root_path != None), \
-                "method RunDQ.convert_zdab must be used before RunDQ.write_macro" 
-            mac_file.write("/rat/inroot/read "+self._root_path+"\n")
-        except AssertionError as detail:
-            print "RunDQ.write_macro: error cannot use inroot producer,", detail
-            sys.exit(1)
-        mac_file.write("exit")
-        mac_file.close()
+        # Open file for writing macro to
+        if (write_macro_dir == "default"):
+            write_macro_dir = os.getcwd()
+        self._write_macro_dir = write_macr_dir+"/"
+        self._write_macro_path = self._write_macro_dir+self._name+".mac"
+        write_macro = open(self._write_macro_path, "w")
+        # Read from template macro
+        if (read_macro_path == "default"):
+            read_macro_path = os.environ.get("RATROOT") \
+                + "/mac/processing/processing.mac"
+        for line in open(read_macro_path):
+            if (line.find("/rat/proclast outroot") >= 0):
+                write_macro.write(line)
+                if self._pass_number == None:
+                    write_macro.write("/rat/procset file \""+self._dir+self._name\
+                                       +"_p1.root\"\n")
+                else:
+                    self._pass_number += 1
+                    write_macro.write("/rat/procset file \""+self._dir+self._name\
+                                       +"p"+str(self._pass_number)+".root\"\n")
+            elif (line.find("/rat/inzdab/read_default") >= 0):
+                if (self._zdab_path != None):
+                    write_macro.write(line.split("_")[0]+" "+self._zdab_path+"\n")
+                elif (self._root_path != None):
+                    write_macro.write("/rat/inroot/read "+self._root_path+"\n")
+                else:
+                    try:
+                        assert ((self._zdab_path != None) or \
+                                    (self._root_path != None)), \
+                                    "No valid zdab or root file"
+                    except AssertionError as detail:
+                        print "RunDQ.write_macro: ERROR", detail
+                        sys.exit(1)
+            else:
+                write_macro.write(line)
+            write_macro.write("exit")
+        write_macro.close()
     def run_rat(self):
         """ Runs rat using the macro created in write_macro """
         try:
@@ -180,8 +200,6 @@ if __name__=="__main__":
     with temporary_directory() as temp_dir:
         for file in file_list:
             data_quality = RunDQ(file, args.passnum)
-            if (args.passnum == None):
-                data_quality.convert_zdab(temp_dir)
             data_quality.write_macro(temp_dir)
             data_quality.run_rat()
             data_quality.clean_up(args.overwrite)
