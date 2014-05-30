@@ -30,6 +30,7 @@ class CheckDQStatus(object):
 ###############################################################################
 if __name__=="__main__":
     from ROOT import TH1D
+    from ROOT import TFile
 
     import argparse    
     import os
@@ -43,19 +44,28 @@ if __name__=="__main__":
                                      "single file to analyse")
     parser.add_argument("directory", help="indicate directory containing DQ"
                         "processed root files")
+    parser.add_argument("-p", "--passnum", type=int,
+                        help="supply a pass number to use processed Root files")
+    parser.add_argument("-w", "--write", help="Write histograms to file",
+                        action="store_true")
     args = parser.parse_args()
 
     file_list = []
     for root, dirs, files in os.walk(args.directory):
         for file in files:
-            match = re.search(r"_p[0-9]+.root", file)
+            match = False
+            if args.passnum:
+                if (file.find("_p"+str(args.passnum)+".root") > 0):
+                    match = True
+            else:
+                match = re.search(r"_p[0-9]+.root", file)
             if match:
                 file_list.append(os.path.join(root, file))
     
     max_bits = 12
 
     hist_title = "Percentage pass rate for DQ checks"
-    hist_dq_checks = TH1D(hist_title, hist_title, max_bits, 0, max_bits) 
+    hist_dq_checks = TH1D("TH1D_dq_status", hist_title, max_bits, 0, max_bits) 
     for file in file_list:
         dq_status = CheckDQStatus(file)
         applied, status = dq_status.get_dq_masks()
@@ -65,5 +75,15 @@ if __name__=="__main__":
                 hist_dq_checks.Fill(bit)
 
 
-    hist_dq_checks.Draw()
+    hist_dq_checks.Draw("text")
+    if args.write:
+        if args.passnum:
+            filename = "check_dq_status_records_p"+str(args.passnum)+".root"
+        else:
+            filename = "check_dq_status_records.root"
+        output_file = TFile(filename, "RECREATE")
+        hist_dq_checks.Write("TH1D_dq_status")
+        output_file.Write()
+        output_file.ls()
+        output_file.Close()
     raw_input("RET to exit")
