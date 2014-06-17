@@ -52,7 +52,7 @@ class RunDQ(object):
                 print "RunDQ.__init__: error", detail
                 sys.exit(1)
             self._root_path = self._path
-        self._mac_path = None
+        self._write_macro_path = None
     def convert_zdab(self, root_dir=""):
         """ DEPRECIATED METHOD - use inzdab in macro
         Uses the zdab2root converter in rat-tools to convert zdab file to 
@@ -83,7 +83,7 @@ class RunDQ(object):
         # Open file for writing macro to
         if (write_macro_dir == "default"):
             write_macro_dir = os.getcwd()
-        self._write_macro_dir = write_macr_dir+"/"
+        self._write_macro_dir = write_macro_dir+"/"
         self._write_macro_path = self._write_macro_dir+self._name+".mac"
         write_macro = open(self._write_macro_path, "w")
         # Read from template macro
@@ -115,14 +115,15 @@ class RunDQ(object):
                         sys.exit(1)
             else:
                 write_macro.write(line)
-            write_macro.write("exit")
         write_macro.close()
+        for line in open(self._write_macro_path, "r"):
+            print line
     def run_rat(self):
         """ Runs rat using the macro created in write_macro """
         try:
-            assert (self._mac_path != None), \
+            assert (self._write_macro_path != None), \
                 "method RunDQ.write_macro must be used before RunDQ.run_rat" 
-            command = "rat "+self._mac_path
+            command = "rat "+self._write_macro_path
             os.environ["RATROOT"]
             process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
             output = process.communicate()[0]
@@ -168,7 +169,7 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser(description="Run DQ processors")
     parser.add_argument("directory", help="indicate directory containing"
                         "raw zdab files to be processed")
-    parser.add_argument("-p", "--passnum", type=int,
+    parser.add_argument("-p", "--passnum", type=int, default=0,
                         help="supply a pass number to use processed Root files")
     parser.add_argument("-o", "--overwrite", help="if output record files/"
                         "plots already exist, overwrite", action="store_true")
@@ -181,10 +182,10 @@ if __name__=="__main__":
     file_list = []
     for root, dirs, files in os.walk(args.directory):
         for file in files:
-            if args.passnum == None:
+            if args.passnum == 0: # zdab
                 match = re.search(r"_[0-9]+.zdab", file)
             else:
-                match = re.search(r"_p[0-9]+.root", file)
+                match = re.search(r"_p"+str(args.passnum)+".root", file)
             if match:
                 file_list.append(os.path.join(root, file))
     
@@ -199,6 +200,7 @@ if __name__=="__main__":
 
     with temporary_directory() as temp_dir:
         for file in file_list:
+            print file
             data_quality = RunDQ(file, args.passnum)
             data_quality.write_macro(temp_dir)
             data_quality.run_rat()
