@@ -22,7 +22,7 @@ import shutil
 
 class RunDQ(object):
     """ Base class for DQ processing """
-    def __init__(self, path, pass_number=None):
+    def __init__(self, path, pass_number="default"):
         """ Initialises the class members, given specified path to zdab file or
         previously DQ-processed RAT-Root file.
         """
@@ -30,18 +30,20 @@ class RunDQ(object):
         self._dir, self._filename = file_manips.split_path(path)
         self._name, self._ext = file_manips.split_ext(self._filename)
         print self._name
-        self._pass_number = pass_number
+        if (pass_number == "default"):
+            pass_number = 1 # Look at first pass by default
+        self._pass_number = pass_number # Number of the current pass (>= 1)
         self._zdab_path = None
         self._root_path = None
         if (self._ext == ".zdab"):
             self._zdab_path = self._path
         elif (self._ext == ".root"):
             name_attributes = self._name.split("_")
-            pass_index = list_manips.item_containing("p"+str(self._pass_number),
+            pass_index = list_manips.item_containing("p"+str(self._pass_number-1),
                                                      name_attributes)
             try:
                 error_message = "Filename does not contain pass count _p"
-                error_message += str(self._pass_number)
+                error_message += str(self._pass_number-1)
                 error_message += (". Please supply a valid processed Root file"
                                   " or raw zdab")
                 assert (pass_index != None), error_message
@@ -95,7 +97,7 @@ class RunDQ(object):
                 write_macro.write(line)
                 if self._pass_number == None:
                     write_macro.write("/rat/procset file \""+self._dir+self._name\
-                                       +"_p1.root\"\n")
+                                       +"_p"self._pass_number+".root\"\n")
                 else:
                     self._pass_number += 1
                     write_macro.write("/rat/procset file \""+self._dir+self._name\
@@ -117,7 +119,7 @@ class RunDQ(object):
                 write_macro.write(line)
         write_macro.close()
         for line in open(self._write_macro_path, "r"):
-            print line
+            print line.rstrip()
     def run_rat(self):
         """ Runs rat using the macro created in write_macro """
         try:
@@ -134,8 +136,12 @@ class RunDQ(object):
             print "RunDQ.run_rat: error", detail, "not set"
             print " --> source correct environment scripts before running!"
             sys.exit(1)
-    def clean_up(self, overwrite=False):
+    def clean_up(self, overwrite="default", version="default"):
         """ Move DQ outputs to their appropriate directory """
+        if (overwrite == "default" ):
+            overwrite = False # by default
+        if (version == "default" ):
+            version = 2 # by default
         try:
             records_dir = os.environ["RECORDS"]
             plots_dir = os.environ["PLOTS"]
@@ -151,14 +157,23 @@ class RunDQ(object):
                 hostname = socket.gethostname()
                 is_log =  re.search(r"^rat\."+hostname+r"\.[0-9]+\.log$", file)
                 if is_record:
-                    file_manips.copy_file(os.path.join(root, file), records_dir,
-                                          self._pass_number, 0, overwrite)
+                    file_manips.copy_file(os.path.join(root, file), 
+                                          records_dir,
+                                          self._pass_number, 
+                                          version, 
+                                          overwrite)
                 elif is_plot:
-                    file_manips.copy_file(os.path.join(root, file), plots_dir,
-                                          self._pass_number, 0, overwrite)
+                    file_manips.copy_file(os.path.join(root, file),
+                                          plots_dir,
+                                          self._pass_number,
+                                          version, 
+                                          overwrite)
                 elif is_log:
-                    file_manips.copy_file(os.path.join(root, file), logs_dir,
-                                          self._pass_number, 0, overwrite)
+                    file_manips.copy_file(os.path.join(root, file), 
+                                          logs_dir,
+                                          self._pass_number,
+                                          version, 
+                                          overwrite)
 
 ###############################################################################
 if __name__=="__main__":
@@ -169,8 +184,11 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser(description="Run DQ processors")
     parser.add_argument("directory", help="indicate directory containing"
                         "raw zdab files to be processed")
-    parser.add_argument("-p", "--passnum", type=int, default=0,
+    parser.add_argument("-p", "--passnum", type=int, default=1,
                         help="supply a pass number to use processed Root files")
+    parser.add_argument("-q", "--version", type=int, default=1,
+                        help="version number for multiple versions of output "
+                        "images and record files")
     parser.add_argument("-o", "--overwrite", help="if output record files/"
                         "plots already exist, overwrite", action="store_true")
     args = parser.parse_args()
@@ -204,4 +222,4 @@ if __name__=="__main__":
             data_quality = RunDQ(file, args.passnum)
             data_quality.write_macro(temp_dir)
             data_quality.run_rat()
-            data_quality.clean_up(args.overwrite)
+            data_quality.clean_up(args.overwrite, args.version)

@@ -41,7 +41,7 @@ def split_ext(filename):
     ext=s[s.find("."):]
     return name, ext
 
-def copy_file(source, destination, passnum=0, version=0, overwrite=False):
+def copy_file(source, destination, passnum=1, version=2, overwrite=False):
     """ A useful function to handle copying files to a different directory
     """
     def get_true_dest_from_message(detail):
@@ -54,21 +54,6 @@ def copy_file(source, destination, passnum=0, version=0, overwrite=False):
         return true_dest
 
     is_copied = False
-    try:
-        shutil.move(source, destination)
-        is_copied = True
-        print "writing to", destination
-    except shutil.Error as detail:
-        print "file_manips.copy_file: warning,", detail
-        true_dest = get_true_dest_from_message(detail)
-        file_name = cut_path(true_dest)
-        name, ext = split_ext(file_name)
-        if (name.find("p") == -1) and (passnum != 0):
-            new_source = name + "_p" + str(passnum) + ext
-            os.rename(source, new_source)
-            source = new_source
-            print "file_manips.copy_file: warning, renaming source file to:"
-            print source
     while not is_copied:
         try:
             shutil.move(source, destination)
@@ -77,10 +62,16 @@ def copy_file(source, destination, passnum=0, version=0, overwrite=False):
         except shutil.Error as detail:
             print "file_manips.copy_file: warning,", detail
             true_dest = get_true_dest_from_message(detail)
+            if (name.find("p") == -1):
+                new_source = name + "_p" + str(passnum) + ext
+                os.rename(source, new_source)
+                source = new_source
+                print "file_manips.copy_file: warning, renaming source file to:"
+                print source
             if overwrite:
                 print "file_manips.copy_file: warning, file:"
                 print " -->", true_dest
-                print "will be deleted, do you wish to continue y/[n]"
+                print "will be overwritten, do you wish to continue y/[n]"
                 delete_file = raw_input()
                 if (delete_file == "y"):
                     os.remove(true_dest)
@@ -90,7 +81,7 @@ def copy_file(source, destination, passnum=0, version=0, overwrite=False):
             else:
                 file_name = cut_path(true_dest)
                 name, ext = split_ext(file_name)
-                new_source = name[:name.find("p" + str(passnum))+2] 
+                new_source = name[:name.find("p" + str(passnum))+1] 
                 new_source += "_q" + str(version) + ext
                 os.rename(source, new_source)
                 source = new_source
