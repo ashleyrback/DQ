@@ -95,13 +95,8 @@ class RunDQ(object):
         for line in open(read_macro_path):
             if (line.find("/rat/proclast outroot") >= 0):
                 write_macro.write(line)
-                if self._pass_number == None:
-                    write_macro.write("/rat/procset file \""+self._dir+self._name\
-                                       +"_p"self._pass_number+".root\"\n")
-                else:
-                    self._pass_number += 1
-                    write_macro.write("/rat/procset file \""+self._dir+self._name\
-                                       +"p"+str(self._pass_number)+".root\"\n")
+                write_macro.write("/rat/procset file \""+self._dir+self._name\
+                                      +"_p"+str(self._pass_number)+".root\"\n")
             elif (line.find("/rat/inzdab/read_default") >= 0):
                 if (self._zdab_path != None):
                     write_macro.write(line.split("_")[0]+" "+self._zdab_path+"\n")
@@ -186,7 +181,7 @@ if __name__=="__main__":
                         "raw zdab files to be processed")
     parser.add_argument("-p", "--passnum", type=int, default=1,
                         help="supply a pass number to use processed Root files")
-    parser.add_argument("-q", "--version", type=int, default=1,
+    parser.add_argument("-q", "--version", type=int, default=2,
                         help="version number for multiple versions of output "
                         "images and record files")
     parser.add_argument("-o", "--overwrite", help="if output record files/"
@@ -200,10 +195,10 @@ if __name__=="__main__":
     file_list = []
     for root, dirs, files in os.walk(args.directory):
         for file in files:
-            if args.passnum == 0: # zdab
+            if args.passnum == 1: # zdab
                 match = re.search(r"_[0-9]+.zdab", file)
             else:
-                match = re.search(r"_p"+str(args.passnum)+".root", file)
+                match = re.search(r"_p"+str(args.passnum-1)+".root", file)
             if match:
                 file_list.append(os.path.join(root, file))
     
