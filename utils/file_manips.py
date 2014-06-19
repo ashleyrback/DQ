@@ -62,6 +62,8 @@ def copy_file(source, destination, passnum=1, version=2, overwrite=False):
         except shutil.Error as detail:
             print "file_manips.copy_file: warning,", detail
             true_dest = get_true_dest_from_message(detail)
+            path, file_name = split_path(true_dest)
+            name, ext = split_ext(file_name)
             if (name.find("p") == -1):
                 new_source = name + "_p" + str(passnum) + ext
                 os.rename(source, new_source)
@@ -79,9 +81,7 @@ def copy_file(source, destination, passnum=1, version=2, overwrite=False):
                     print "moving", source, "to", true_dest, "aborted!"
                     is_copied = True
             else:
-                file_name = cut_path(true_dest)
-                name, ext = split_ext(file_name)
-                new_source = name[:name.find("p" + str(passnum))+1] 
+                new_source = name[:name.find("_p" + str(passnum))+3] 
                 new_source += "_q" + str(version) + ext
                 os.rename(source, new_source)
                 source = new_source
