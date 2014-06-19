@@ -23,9 +23,11 @@ class CheckDQStatus(object):
         """
         events = rat.dsreader(self._path)
         ds, run = events.next()
-        self._dq_applied = run.GetDQApplied()
-        self._dq_mask = run.GetDQMask()
-        return (self._dq_applied, self._dq_mask)
+        self._dq_flags = run.GetDataQualityFlags().GetFlags(0)
+        print self._dq_flags
+        self._dq_applied = run.GetDataQualityFlags().GetApplied(0)
+        print self._dq_applied
+        return self._dq_flags, self._dq_applied
 
 ###############################################################################
 if __name__=="__main__":
@@ -36,8 +38,6 @@ if __name__=="__main__":
     import os
     import re
     import math
-
-    from bit_manips import query_mask
 
     parser = argparse.ArgumentParser(description="DQ status word analyser"
                                      "specify either directory of files or a"
@@ -55,27 +55,103 @@ if __name__=="__main__":
         for file in files:
             match = False
             if args.passnum:
-                if (file.find("_p"+str(args.passnum)+".root") > 0):
+                if (file.find(r"SNOP_[0-9]+_[0-9]+_p"+str(args.passnum)+".root") > 0):
                     match = True
             else:
-                match = re.search(r"_p[0-9]+.root", file)
+                match = re.search(r"SNOP_[0-9]+_[0-9]+_p[0-9]+.root", file)
             if match:
                 file_list.append(os.path.join(root, file))
-    
-    max_bits = 12
+    max_bits = 13
+    utility = rat.utility()
+    dq_bits = utility.GetDataQualityBits()
 
-    hist_title = "Percentage pass rate for DQ checks"
-    hist_dq_checks = TH1D("TH1D_dq_status", hist_title, max_bits, 0, max_bits) 
+    hist_title = "Performance of DQ checks"
+    hist_dq_flags = TH1D("TH1D_dq_status", hist_title, max_bits, 0, max_bits) 
+    hist_dq_flags.GetXaxis().SetBinLabel(1, "run_type")
+    hist_dq_flags.GetXaxis().SetBinLabel(2, "mc_flag")
+    hist_dq_flags.GetXaxis().SetBinLabel(3, "trigger")
+    hist_dq_flags.GetXaxis().SetBinLabel(4, "run_length")
+    hist_dq_flags.GetXaxis().SetBinLabel(5, "general_coverage")
+    hist_dq_flags.GetXaxis().SetBinLabel(6, "crate_coverage")
+    hist_dq_flags.GetXaxis().SetBinLabel(7, "panel_coverage")
+    hist_dq_flags.GetXaxis().SetBinLabel(8, "run_header")
+    hist_dq_flags.GetXaxis().SetBinLabel(9, "delta_t_comparison")
+    hist_dq_flags.GetXaxis().SetBinLabel(10, "clock_forward")
+    hist_dq_flags.GetXaxis().SetBinLabel(11, "event_separation")
+    hist_dq_flags.GetXaxis().SetBinLabel(12, "retriggers")
+    hist_dq_flags.GetXaxis().SetBinLabel(13, "event_rate")
+    hist_dq_applied = TH1D("TH1D_dq_applied", hist_title, max_bits, 0, max_bits) 
+    hist_dq_applied.GetXaxis().SetBinLabel(1, "run_type")
+    hist_dq_applied.GetXaxis().SetBinLabel(2, "mc_flag")
+    hist_dq_applied.GetXaxis().SetBinLabel(3, "trigger")
+    hist_dq_applied.GetXaxis().SetBinLabel(4, "run_length")
+    hist_dq_applied.GetXaxis().SetBinLabel(5, "general_coverage")
+    hist_dq_applied.GetXaxis().SetBinLabel(6, "crate_coverage")
+    hist_dq_applied.GetXaxis().SetBinLabel(7, "panel_coverage")
+    hist_dq_applied.GetXaxis().SetBinLabel(8, "run_header")
+    hist_dq_applied.GetXaxis().SetBinLabel(9, "delta_t_comparison")
+    hist_dq_applied.GetXaxis().SetBinLabel(10, "clock_forward")
+    hist_dq_applied.GetXaxis().SetBinLabel(11, "event_separation")
+    hist_dq_applied.GetXaxis().SetBinLabel(12, "retriggers")
+    hist_dq_applied.GetXaxis().SetBinLabel(13, "event_rate")
     for file in file_list:
-        dq_status = CheckDQStatus(file)
-        applied, status = dq_status.get_dq_masks()
-        for bit in range(0, int(math.log(applied, 2))):
-            passed_check = query_mask(bit, status, applied)
-            if passed_check:
-                hist_dq_checks.Fill(bit)
-
-
-    hist_dq_checks.Draw("text")
+        events = rat.dsreader(file)
+        ds, run = events.next()
+        flags = run.GetDataQualityFlags().GetFlags(0)
+        applied = run.GetDataQualityFlags().GetApplied(0)
+        if(flags.Get(dq_bits.GetBitIndex("run_type"))):
+            hist_dq_flags.AddBinContent(1)
+        if(applied.Get(dq_bits.GetBitIndex("run_type"))):
+            hist_dq_applied.AddBinContent(1)
+        if(flags.Get(dq_bits.GetBitIndex("mc_flag"))):
+            hist_dq_flags.AddBinContent(2)
+        if(applied.Get(dq_bits.GetBitIndex("mc_flag"))):
+            hist_dq_applied.AddBinContent(2)
+        if(flags.Get(dq_bits.GetBitIndex("trigger"))):
+            hist_dq_flags.AddBinContent(3)
+        if(applied.Get(dq_bits.GetBitIndex("trigger"))):
+            hist_dq_applied.AddBinContent(3)
+        if(flags.Get(dq_bits.GetBitIndex("run_length"))):
+            hist_dq_flags.AddBinContent(4)
+        if(applied.Get(dq_bits.GetBitIndex("run_length"))):
+            hist_dq_applied.AddBinContent(4)
+        if(flags.Get(dq_bits.GetBitIndex("general_coverage"))):
+            hist_dq_flags.AddBinContent(5)
+        if(applied.Get(dq_bits.GetBitIndex("general_coverage"))):
+            hist_dq_applied.AddBinContent(5)
+        if(flags.Get(dq_bits.GetBitIndex("crate_coverage"))):
+            hist_dq_flags.AddBinContent(6)
+        if(applied.Get(dq_bits.GetBitIndex("crate_coverage"))):
+            hist_dq_applied.AddBinContent(6)
+        if(flags.Get(dq_bits.GetBitIndex("panel_coverage"))):
+            hist_dq_flags.AddBinContent(7)
+        if(applied.Get(dq_bits.GetBitIndex("panel_coverage"))):
+            hist_dq_applied.AddBinContent(7)
+        if(flags.Get(dq_bits.GetBitIndex("run_header"))):
+            hist_dq_flags.AddBinContent(8)
+        if(applied.Get(dq_bits.GetBitIndex("run_header"))):
+            hist_dq_applied.AddBinContent(8)
+        if(flags.Get(dq_bits.GetBitIndex("delta_t_comparison"))):
+            hist_dq_flags.AddBinContent(9)
+        if(applied.Get(dq_bits.GetBitIndex("delta_t_comparison"))):
+            hist_dq_applied.AddBinContent(9)
+        if(flags.Get(dq_bits.GetBitIndex("clock_forward"))):
+            hist_dq_flags.AddBinContent(10)
+        if(applied.Get(dq_bits.GetBitIndex("clock_forward"))):
+            hist_dq_applied.AddBinContent(10)
+        if(flags.Get(dq_bits.GetBitIndex("event_separation"))):
+            hist_dq_flags.AddBinContent(11)
+        if(applied.Get(dq_bits.GetBitIndex("event_separation"))):
+            hist_dq_applied.AddBinContent(11)
+        if(flags.Get(dq_bits.GetBitIndex("retriggers"))):
+            hist_dq_flags.AddBinContent(12)
+        if(applied.Get(dq_bits.GetBitIndex("retriggers"))):
+            hist_dq_applied.AddBinContent(12)
+        if(flags.Get(dq_bits.GetBitIndex("event_rate"))):
+            hist_dq_flags.AddBinContent(13)
+        if(applied.Get(dq_bits.GetBitIndex("event_rate"))):
+            hist_dq_applied.AddBinContent(13)
+    hist_dq_flags.Draw()
     if args.write:
         if args.passnum:
             filename = "check_dq_status_records_p"+str(args.passnum)+".root"
@@ -86,4 +162,4 @@ if __name__=="__main__":
         output_file.Write()
         output_file.ls()
         output_file.Close()
-    raw_input("RET to exit")
+    raw_input("RETURN to exit")
